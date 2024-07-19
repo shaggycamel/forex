@@ -1,9 +1,11 @@
 
 library(tidyverse)
 library(quantmod)
+library(nba.dataRub)
 
 observed_currencies <- c("NZD", "AUD", "USD")
 
+db_con <- dh_createCon("cockroach")
 
 # Currency table ----------------------------------------------------------
 
@@ -11,8 +13,7 @@ df_currencies <- oanda.currencies |>
   rownames_to_column() |> 
   rename(symbol = 1, country = 2)
 
-df_og <- read_csv("rates.csv")
-df_dates_from <- slice_max(df_og, date, by = c(base_cur, conversion_cur))
+df_dates_from <- dh_getQuery(db_con, "dates_from.sql")
 
 
 # Get rates ---------------------------------------------------------------
@@ -59,6 +60,4 @@ df_rates <- map(observed_currencies, \(obs_cur){
 
 # Write to database -------------------------------------------------------
 
-write_csv(df_rates, "rates.csv", append = TRUE)
-
-
+dh_ingestData(db_con, df_rates, "forex", "rates", append=TRUE)

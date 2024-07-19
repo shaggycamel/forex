@@ -2,28 +2,38 @@
 library(tidyverse)
 library(slider)
 library(plotly)
+library(nba.dataRub)
 
-df_rates <- read_csv("rates.csv") |> 
-  arrange(base_cur, conversion_cur, date) |> 
-  mutate(
-    rate_mean_30 = slide_mean(rate, before = 30, complete = TRUE),
-    rate_mean_7 = slide_mean(rate, before = 7, complete = TRUE),
-    rate_lag_30 = lag(rate, 30),
-    rate_lag_7 = lag(rate, 7),
-    rate_lag_1 = lag(rate, 1),
-    .by = c(base_cur, conversion_cur)
-  ) |> 
-  mutate(
-    perc_rate_diff_30 = (rate - rate_lag_30) / ((rate + rate_lag_30) / 2),
-    perc_rate_diff_7 = (rate - rate_lag_7) / ((rate + rate_lag_7) / 2),
-    perc_rate_diff_1 = (rate - rate_lag_1) / ((rate + rate_lag_1) / 2)
-  ) |> 
-  mutate(
-    perc_diff_rank_30 = dense_rank(perc_rate_diff_30 * -1),
-    perc_diff_rank_7 = dense_rank(perc_rate_diff_7 * -1),
-    perc_diff_rank_1 = dense_rank(perc_rate_diff_1 * -1),
-    .by = c(base_cur, date)
-  )
+db_con <- dh_createCon("cockroach")
+
+
+# Data prep ---------------------------------------------------------------
+
+mean_diff_rank_calc <- function(df, interval){
+  df |> 
+    mutate(
+      !!paste0("rate_mean_", interval) := slide_mean(rate, before = interval, complete = TRUE),
+      !!paste0("rate_lag_", interval) := lag(rate, interval),
+      .by = c(base_cur, conversion_cur)
+    ) |> 
+    mutate(
+      !!paste0("perc_rate_diff_", interval) :=
+        (rate - !!sym(paste0("rate_lag_", interval))) /
+          ((rate + !!sym(paste0("rate_lag_", interval))) / 2)
+    ) |> 
+    mutate(
+      !!paste0("perc_diff_rank_", interval) := dense_rank(!!sym(paste0("perc_rate_diff_", interval)) * -1),
+      .by = c(base_cur, date)
+    )
+}
+
+
+df_rates <- dh_getQuery(db_con, "anl_query.sql") |> 
+  mean_diff_rank_calc(1) |> 
+  mean_diff_rank_calc(7) |> 
+  mean_diff_rank_calc(30) |> 
+  mean_diff_rank_calc(100)
+
 
 
 # Plot --------------------------------------------------------------------
@@ -33,20 +43,15 @@ cv_c <- "MMK"
 
 plt_df <- filter(df_rates, base_cur == bs_c, conversion_cur == cv_c)
 
-ggplot(plt_df, aes(x = date, y = rate)) +
-  geom_path() +
-  geom_point() +
-  geom_path(aes(y = rate_mean_30), colour = "red") +
-  geom_path(aes(y = rate_mean_7), colour = "blue") +
-  theme_bw()
-
-# plotly slider
-
-
-
-# RATE OF INCREASE --------------------------------------------------------
+plot_ly(plt_df, x = ~date, y = ~rate, name = 'daily', type = 'scatter', mode = 'lines+markers') |> 
+  add_trace(y = ~rate_mean_7, name = '7 day ma', mode = 'lines') |> 
+  add_trace(y = ~rate_mean_30, name = '30 day ma', mode = 'lines') |> 
+  add_trace(y = ~rate_mean_100, name = '100 day ma', mode = 'lines') |> 
+  layout(
+    title = list(text = paste(bs_c, cv_c, sep = "/"), x = 0.08, y = 1.1),
+    yaxis = list(title = "Rate"),
+    xaxis = list(rangeslider = list(type = "date")),
+    hovermode="x unified"
+  )
 
 
-df_rates <- df_rates |> 
-  group_by(base_cur, conversion_cur) |> 
-  mutate()
