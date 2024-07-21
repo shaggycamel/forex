@@ -32,6 +32,8 @@ get_rates <- possibly(
     cat(paste0(pair_cur, ": ", pos_ix, " of ", length(currencies) * length(observed_currencies), "\n"))
     # Sys.sleep(3)
     
+    print(pair_cur)
+    print(getFX(pair_cur, from = from_date + 1, auto.assign = FALSE))
     getFX(pair_cur, from = from_date + 1, auto.assign = FALSE) |> 
       as.data.frame() |>
       rownames_to_column(var = "date") |>
@@ -42,22 +44,43 @@ get_rates <- possibly(
 
 )
 
+df_dates_from <- mutate(df_dates_from, max = max - 5)
 
 df_rates <- map(observed_currencies, \(obs_cur){
   
   compare_currencies <- df_currencies |> 
     filter(symbol != obs_cur) |> 
     pull(symbol)
-  
+
   map(compare_currencies, \(x) get_rates(obs_cur, x, compare_currencies)) |> 
     compact() |> 
     bind_rows()
   
 }) |> 
-  bind_rows() |>
+  bind_rows() |> 
   mutate(date = as.Date(date))
 
 
 # Write to database -------------------------------------------------------
 
-dh_ingestData(db_con, df_rates, "forex", "rates", append=TRUE)
+# Rates
+# dh_ingestData(db_con, df_rates, "forex", "rates", append=TRUE)
+
+
+# Error log
+df_error_log <- tibble(base_cur = observed_currencies) |> 
+  cross_join(select(df_currencies, conversion_cur = symbol)) |> 
+  filter(base_cur != conversion_cur) |> 
+  anti_join(df_rates, by = join_by(base_cur, conversion_cur)) |> 
+  summarise(error_conversion_cur = paste(conversion_cur, collapse = ", "), .by = base_cur) |> 
+  mutate(date = Sys.Date(), .before = everything())
+
+dh_ingestData(db_con, df_error_log, "forex", "error_log", append = TRUE)
+
+
+# Update log
+df_update_log <- tibble(update_date = Sys.Date(), max_conversion_date = max(df_rates$date))
+
+dh_ingestData(db_con, df_update_log, "forex", "udpate_log", append = TRUE)
+
+
