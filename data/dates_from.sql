@@ -1,6 +1,6 @@
 SELECT 
   base_cur, 
   conversion_cur, 
-  MAX(date) 
+  MAX(date) AS date
 FROM forex.rates 
 GROUP BY base_cur, conversion_cur
