@@ -1,5 +1,7 @@
 
 
+# Initialisation  -----------------------------------------------------------
+
 observed_currencies <- c("NZD", "AUD", "USD")
 
 db_con <- nba.dataRub::dh_createCon("cockroach")
@@ -57,6 +59,8 @@ df_rates <- purrr::map(observed_currencies, \(obs_cur){
 # Rates
 nba.dataRub::dh_ingestData(db_con, df_rates, "forex", "rates", append = TRUE)
 
+df_rates <- dplyr::filter(df_rates, conversion_cur != "DZD")
+df_rates |> dplyr::count(base_cur)
 
 # Error log
 df_error_log <- tibble::tibble(base_cur = observed_currencies) |> 
@@ -64,16 +68,14 @@ df_error_log <- tibble::tibble(base_cur = observed_currencies) |>
   dplyr::filter(base_cur != conversion_cur) |> 
   dplyr::anti_join(df_rates, by = dplyr::join_by(base_cur, conversion_cur)) |> 
   dplyr::arrange(base_cur, conversion_cur) |> 
-  dplyr::summarise(error_conversion_cur = paste(conversion_cur, collapse = ", "), .by = base_cur) |> 
-  dplyr::mutate(update_date = Sys.Date(), .before = tidyselect::everything())
+  dplyr::mutate(update_date = Sys.Date(), .before = tidyselect::everything()) |> 
+  dplyr::left_join(df_dates_from, by = dplyr::join_by(base_cur, conversion_cur)) |> 
+  dplyr::rename(latest_available_date = date)
 
-#if(nrow(df_error_log) > 0) nba.dataRub::dh_ingestData(db_con, df_error_log, "forex", "error_log", append = TRUE)
+if(nrow(df_error_log) > 0) nba.dataRub::dh_ingestData(db_con, df_error_log, "forex", "error_log", append = TRUE)
 
 
 # Update log
 df_update_log <- tibble::tibble(update_date = Sys.Date(), max_conversion_date = max(df_rates$date))
 
 nba.dataRub::dh_ingestData(db_con, df_update_log, "forex", "update_log", append = TRUE)
-
-
-print("SUCCESS")
