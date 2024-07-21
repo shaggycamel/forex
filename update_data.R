@@ -67,7 +67,7 @@ df_error_log <- tibble::tibble(base_cur = observed_currencies) |>
   dplyr::arrange(base_cur, conversion_cur) |> 
   dplyr::mutate(update_date = Sys.Date(), .before = tidyselect::everything()) |> 
   dplyr::left_join(df_dates_from, by = dplyr::join_by(base_cur, conversion_cur)) |> 
-  dplyr::rename(latest_available_date = date)
+  dplyr::rename(max_pair_conversion_date = date)
 
 if(nrow(df_error_log) > 0) nba.dataRub::dh_ingestData(db_con, df_error_log, "forex", "error_log", append = TRUE)
 
