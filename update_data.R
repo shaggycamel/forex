@@ -1,4 +1,5 @@
 
+
 observed_currencies <- c("NZD", "AUD", "USD")
 
 db_con <- nba.dataRub::dh_createCon("cockroach")
@@ -66,7 +67,7 @@ df_error_log <- tibble::tibble(base_cur = observed_currencies) |>
   dplyr::summarise(error_conversion_cur = paste(conversion_cur, collapse = ", "), .by = base_cur) |> 
   dplyr::mutate(update_date = Sys.Date(), .before = tidyselect::everything())
 
-if(nrow(df_error_log) > 0) nba.dataRub::dh_ingestData(db_con, df_error_log, "forex", "error_log", append = TRUE)
+#if(nrow(df_error_log) > 0) nba.dataRub::dh_ingestData(db_con, df_error_log, "forex", "error_log", append = TRUE)
 
 
 # Update log
@@ -75,3 +76,4 @@ df_update_log <- tibble::tibble(update_date = Sys.Date(), max_conversion_date = 
 nba.dataRub::dh_ingestData(db_con, df_update_log, "forex", "update_log", append = TRUE)
 
 
+print("SUCCESS")
