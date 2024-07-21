@@ -59,9 +59,6 @@ df_rates <- purrr::map(observed_currencies, \(obs_cur){
 # Rates
 nba.dataRub::dh_ingestData(db_con, df_rates, "forex", "rates", append = TRUE)
 
-df_rates <- dplyr::filter(df_rates, conversion_cur != "DZD")
-df_rates |> dplyr::count(base_cur)
-
 # Error log
 df_error_log <- tibble::tibble(base_cur = observed_currencies) |> 
   dplyr::cross_join(dplyr::select(df_currencies, conversion_cur = symbol)) |> 
