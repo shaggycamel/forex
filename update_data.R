@@ -51,7 +51,8 @@ df_rates <- purrr::map(observed_currencies, \(obs_cur){
   
 }) |> 
   dplyr::bind_rows() |> 
-  dplyr::mutate(date = as.Date(date))
+  dplyr::mutate(date = as.Date(date)) |> 
+  dplyr::select(base_cur, conversion_cur, date, rate)
 
 
 # Write to database -------------------------------------------------------
@@ -65,7 +66,7 @@ df_error_log <- tibble::tibble(base_cur = observed_currencies) |>
   dplyr::filter(base_cur != conversion_cur) |> 
   dplyr::anti_join(df_rates, by = dplyr::join_by(base_cur, conversion_cur)) |> 
   dplyr::arrange(base_cur, conversion_cur) |> 
-  dplyr::mutate(update_date = Sys.Date(), .before = tidyselect::everything()) |> 
+  dplyr::mutate(update_date = Sys.Date()) |>
   dplyr::left_join(df_dates_from, by = dplyr::join_by(base_cur, conversion_cur)) |> 
   dplyr::rename(max_pair_conversion_date = date)
 
