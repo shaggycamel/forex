@@ -1,7 +1,9 @@
+
 library(rvest)
 library(dplyr)
 library(tidyr)
 library(stringr)
+
 
 df_elections <- read_html("https://en.wikipedia.org/wiki/List_of_next_general_elections") |> 
   html_nodes(".wikitable") |> 
@@ -16,14 +18,22 @@ df_elections <- read_html("https://en.wikipedia.org/wiki/List_of_next_general_el
 
 # Remove anything that is not a number
 df_election_info <- df_elections |> 
-  select(country, starts_with("term"), fairness, in_power_now)
+  select(country, starts_with("term"), fairness, in_power_now) |> 
+  mutate(across(starts_with("term"), \(x) str_remove(str_remove(x, "\\(.*\\)"), "\\D"))) |> 
+  mutate(across(starts_with("term"), \(x) as.integer(x))) |> 
+  mutate(across(where(is.character), \(x) str_squish(x))) |> 
+  mutate(across(where(is.character), \(x) na_if(x, "")))
+
 
 df_election_dates <- df_elections |> 
   select(country, starts_with("presidential"), starts_with("legislative")) |> 
-  pivot_longer(c(starts_with("presidential"), starts_with("legislative")), names_to = "type", values_to = "date") |> 
+  pivot_longer(c(starts_with("presidential"), starts_with("legislative")), names_to = "type", values_to = "date_string") |> 
+  filter(str_detect(date_string, "\\d")) |> 
   mutate(type = str_remove(type, "_\\d")) |> 
-  filter(str_detect(date, "\\d")) |> 
-  mutate(new_date = lubridate::parse_date_time(date, orders = c("Y", "dmY", "mY"))) |> 
-  mutate(date = if_else(is.na(new_date), str_remove(date, ".*\\d{1}–"), date)) |> 
-  mutate(new_date = if_else(is.na(new_date), lubridate::parse_date_time(date, orders = c("Y", "dmY")), new_date))
+  mutate(date_string = str_replace(date_string, "[[:punct:]]", "-")) |> 
+  mutate(date_string = str_remove(date_string, ".*\\d{1}-")) |> 
+  mutate(date = lubridate::parse_date_time(date_string, orders = c("Y", "dmY", "mY"))) |> 
+  mutate(year = lubridate::year(date))
 
+
+# Eventually create procedure to combine with existing date data and remove duplicates
