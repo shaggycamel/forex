@@ -1,5 +1,4 @@
 
-
 # Initialisation  -----------------------------------------------------------
 
 observed_currencies <- c("NZD", "AUD", "USD")
@@ -13,7 +12,6 @@ df_currencies <- quantmod::oanda.currencies |>
   dplyr::rename(symbol = 1, country = 2)
 
 df_dates_from <- nba.dataRub::dh_getQuery(db_con, "dates_from.sql")
-
 
 # Get rates ---------------------------------------------------------------
 
@@ -43,7 +41,7 @@ get_rates <- purrr::possibly(
 
 df_rates <- purrr::map(observed_currencies, \(obs_cur){
   
-  compare_currencies <- setdiff(df_currencies$symbol, obs_cur)
+  compare_currencies <- setdiff(df_currencies$symbol, obs_cur)[1:5]
 
   purrr::map(compare_currencies, \(x) get_rates(obs_cur, x, compare_currencies)) |> 
     purrr::compact() |> 
