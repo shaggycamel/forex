@@ -1,7 +1,7 @@
 
 # Initialisation  -----------------------------------------------------------
 
-observed_currencies <- c("NZD", "AUD", "USD")
+observed_currencies <- c("NZD", "AUD", "USD", "EUR", "GBP", "JPY", "ZAR", "CNY", "BRL", "INR")
 
 db_con <- nba.dataRub::dh_createCon("cockroach")
 
@@ -41,7 +41,7 @@ get_rates <- purrr::possibly(
 
 df_rates <- purrr::map(observed_currencies, \(obs_cur){
   
-  compare_currencies <- setdiff(df_currencies$symbol, obs_cur)[1:5]
+  compare_currencies <- setdiff(df_currencies$symbol, obs_cur)
 
   purrr::map(compare_currencies, \(x) get_rates(obs_cur, x, compare_currencies)) |> 
     purrr::compact() |> 
